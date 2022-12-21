@@ -31,6 +31,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"encoding/json"
 
 	"github.com/andybalholm/brotli"
 	"github.com/go-kit/log"
@@ -492,6 +493,37 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			} else {
 				probeFailedDueToRegex.Set(1)
 				probeXAAShealth.Set(1)
+			}
+		}
+
+		if success {
+			fmt.Println(resp.Body)
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				probeXAAShealth.Set(0)
+			} else {
+				response := string(body)
+				//fmt.Println(response)
+				resBytes := []byte(response)
+				var jsonRes map[string]interface{}
+				_ = json.Unmarshal(resBytes, &jsonRes)
+				//fmt.Println(jsonRes)
+				if val, ok := jsonRes["status"]; ok {
+					//fmt.Println("Status found in response : ")
+					//fmt.Println(val)
+					if val == "UP" {
+						probeXAAShealth.Set(3)
+					}
+					if val == "DEGRADED" {
+						probeXAAShealth.Set(2)
+					}
+					if val == "DOWN" {
+						probeXAAShealth.Set(1)
+					}
+				} else { 
+					//fmt.Println("Status not found in response")
+					probeXAAShealth.Set(0)
+				}
 			}
 		}
 
