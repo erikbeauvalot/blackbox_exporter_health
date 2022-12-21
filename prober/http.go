@@ -295,6 +295,11 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			Name: "probe_http_last_modified_timestamp_seconds",
 			Help: "Returns the Last-Modified HTTP response header in unixtime",
 		})
+
+		probeXAAShealth = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "probe_xaas_health",
+			Help: "Returns /health of Xaas end point : 0 = Failure, 1 = DOWN, 2 = DEGRADED, 3 = UP",
+		})
 	)
 
 	registry.MustRegister(durationGaugeVec)
@@ -482,8 +487,10 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			success = matchRegularExpressionsOnHeaders(resp.Header, httpConfig, logger)
 			if success {
 				probeFailedDueToRegex.Set(0)
+				probeXAAShealth.Set(0)
 			} else {
 				probeFailedDueToRegex.Set(1)
+				probeXAAShealth.Set(1)
 			}
 		}
 
@@ -526,8 +533,10 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			success = matchRegularExpressions(byteCounter, httpConfig, logger)
 			if success {
 				probeFailedDueToRegex.Set(0)
+				probeXAAShealth.Set(0)
 			} else {
 				probeFailedDueToRegex.Set(1)
+				probeXAAShealth.Set(1)
 			}
 		}
 
