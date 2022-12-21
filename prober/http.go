@@ -310,6 +310,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 	registry.MustRegister(statusCodeGauge)
 	registry.MustRegister(probeHTTPVersionGauge)
 	registry.MustRegister(probeFailedDueToRegex)
+	registry.MustRegister(probeXAAShealth)
 
 	httpConfig := module.HTTP
 
