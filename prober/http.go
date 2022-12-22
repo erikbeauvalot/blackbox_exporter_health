@@ -501,10 +501,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			level.Info(logger).Log("msg", "Invalid HTTP response status code, wanted 2xx", "status_code", resp.StatusCode)
 		}
 
-		probeXAAShealthVec.WithLabelValues("DEGRADED").Set(0)
-		probeXAAShealthVec.WithLabelValues("UP").Set(0)
-		probeXAAShealthVec.WithLabelValues("DOWN").Set(0)
-		probeXAAShealthVec.WithLabelValues("KO").Set(0)
+		//probeXAAShealthVec.WithLabelValues("0", "0", "0", "0").Set(1)
 
 		if success && (len(httpConfig.FailIfHeaderMatchesRegexp) > 0 || len(httpConfig.FailIfHeaderNotMatchesRegexp) > 0) {
 			success = matchRegularExpressionsOnHeaders(resp.Header, httpConfig, logger)
@@ -514,14 +511,14 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 				//probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 			} else {
 				probeFailedDueToRegex.Set(1)
-				probeXAAShealthVec.WithLabelValues("KO").Set(1)
+				probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(1)
 				probeXAAShealth.Set(0)
 				probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 			}
 		}
 
 		if success {
-			fmt.Println(resp.Body)
+			//fmt.Println(resp.Body)
 			body, err := io.ReadAll(resp.Body)
 			probeXAAShealthmessage.WithLabelValues(string(body)).Set(1)
 			if err != nil {
@@ -537,20 +534,20 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 					//fmt.Println("Status found in response : ")
 					//fmt.Println(val)
 					if val == "UP" {
-						probeXAAShealth.Set(3)
-						probeXAAShealthVec.WithLabelValues("UP").Set(1)
+						probeXAAShealth.Set(1)
+						probeXAAShealthVec.WithLabelValues("1", "0", "0", "0").Set(1)
 					}
 					if val == "DEGRADED" {
-						probeXAAShealthVec.WithLabelValues("DEGRADED").Set(1)
-						probeXAAShealth.Set(2)
+						probeXAAShealthVec.WithLabelValues("0", "1", "0", "0").Set(1)
+						probeXAAShealth.Set(1)
 					}
 					if val == "DOWN" {
-						probeXAAShealthVec.WithLabelValues("DOWN").Set(1)
-						probeXAAShealth.Set(1)
+						probeXAAShealthVec.WithLabelValues("0", "0", "1", "0").Set(1)
+						probeXAAShealth.Set(0)
 					}
 				} else { 
 					//fmt.Println("Status not found in response")
-					probeXAAShealthVec.WithLabelValues("KO").Set(1)
+					probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(1)
 					probeXAAShealth.Set(0)
 				}
 			}

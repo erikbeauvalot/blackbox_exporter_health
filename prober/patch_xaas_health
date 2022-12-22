@@ -24,24 +24,21 @@
 < 	registry.MustRegister(probeXAAShealth)
 < 	registry.MustRegister(probeXAAShealthVec)
 < 	registry.MustRegister(probeXAAShealthmessage)
-504,508d480
-< 		probeXAAShealthVec.WithLabelValues("DEGRADED").Set(0)
-< 		probeXAAShealthVec.WithLabelValues("UP").Set(0)
-< 		probeXAAShealthVec.WithLabelValues("DOWN").Set(0)
-< 		probeXAAShealthVec.WithLabelValues("KO").Set(0)
+504,505d480
+< 		//probeXAAShealthVec.WithLabelValues("0", "0", "0", "0").Set(1)
 < 
-513,514d484
+510,511d484
 < 				//probeXAAShealth.Set(0)
 < 				//probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
-517,555d486
-< 				probeXAAShealthVec.WithLabelValues("KO").Set(1)
+514,552d486
+< 				probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(1)
 < 				probeXAAShealth.Set(0)
 < 				probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 < 			}
 < 		}
 < 
 < 		if success {
-< 			fmt.Println(resp.Body)
+< 			//fmt.Println(resp.Body)
 < 			body, err := io.ReadAll(resp.Body)
 < 			probeXAAShealthmessage.WithLabelValues(string(body)).Set(1)
 < 			if err != nil {
@@ -57,23 +54,23 @@
 < 					//fmt.Println("Status found in response : ")
 < 					//fmt.Println(val)
 < 					if val == "UP" {
-< 						probeXAAShealth.Set(3)
-< 						probeXAAShealthVec.WithLabelValues("UP").Set(1)
+< 						probeXAAShealth.Set(1)
+< 						probeXAAShealthVec.WithLabelValues("1", "0", "0", "0").Set(1)
 < 					}
 < 					if val == "DEGRADED" {
-< 						probeXAAShealthVec.WithLabelValues("DEGRADED").Set(1)
-< 						probeXAAShealth.Set(2)
+< 						probeXAAShealthVec.WithLabelValues("0", "1", "0", "0").Set(1)
+< 						probeXAAShealth.Set(1)
 < 					}
 < 					if val == "DOWN" {
-< 						probeXAAShealthVec.WithLabelValues("DOWN").Set(1)
-< 						probeXAAShealth.Set(1)
+< 						probeXAAShealthVec.WithLabelValues("0", "0", "1", "0").Set(1)
+< 						probeXAAShealth.Set(0)
 < 					}
 < 				} else { 
 < 					//fmt.Println("Status not found in response")
-< 					probeXAAShealthVec.WithLabelValues("KO").Set(1)
+< 					probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(1)
 < 					probeXAAShealth.Set(0)
 < 				}
-598d528
+595d528
 < 				probeXAAShealth.Set(0)
-601d530
+598d530
 < 				probeXAAShealth.Set(1)
