@@ -302,12 +302,18 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			Help: "Returns /health of Xaas end point : 0 = Failure, 1 = DOWN, 2 = DEGRADED, 3 = UP",
 		})
 
+		probeXAAShealthVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "probe_xaas_health_vec",
+			Help: "Returns /health of Xaas end point",
+			},
+			[]string{"UP", "DEGRADED", "DOWN", "KO"},
+	        )
+
 		probeXAAShealthmessage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "probe_xaas_health_message",
 			Help: "Returns /health of Xaas end point",
 			},
 			[]string{"message"},
-
 	        )
 	)
 
@@ -320,6 +326,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 	registry.MustRegister(probeHTTPVersionGauge)
 	registry.MustRegister(probeFailedDueToRegex)
 	registry.MustRegister(probeXAAShealth)
+	registry.MustRegister(probeXAAShealthVec)
 	registry.MustRegister(probeXAAShealthmessage)
 
 	httpConfig := module.HTTP
@@ -494,6 +501,11 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			level.Info(logger).Log("msg", "Invalid HTTP response status code, wanted 2xx", "status_code", resp.StatusCode)
 		}
 
+		probeXAAShealthVec.WithLabelValues("DEGRADED").Set(0)
+		probeXAAShealthVec.WithLabelValues("UP").Set(0)
+		probeXAAShealthVec.WithLabelValues("DOWN").Set(0)
+		probeXAAShealthVec.WithLabelValues("KO").Set(0)
+
 		if success && (len(httpConfig.FailIfHeaderMatchesRegexp) > 0 || len(httpConfig.FailIfHeaderNotMatchesRegexp) > 0) {
 			success = matchRegularExpressionsOnHeaders(resp.Header, httpConfig, logger)
 			if success {
@@ -502,6 +514,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 				//probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 			} else {
 				probeFailedDueToRegex.Set(1)
+				probeXAAShealthVec.WithLabelValues("KO").Set(1)
 				probeXAAShealth.Set(0)
 				probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 			}
@@ -525,15 +538,19 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 					//fmt.Println(val)
 					if val == "UP" {
 						probeXAAShealth.Set(3)
+						probeXAAShealthVec.WithLabelValues("UP").Set(1)
 					}
 					if val == "DEGRADED" {
+						probeXAAShealthVec.WithLabelValues("DEGRADED").Set(1)
 						probeXAAShealth.Set(2)
 					}
 					if val == "DOWN" {
+						probeXAAShealthVec.WithLabelValues("DOWN").Set(1)
 						probeXAAShealth.Set(1)
 					}
 				} else { 
 					//fmt.Println("Status not found in response")
+					probeXAAShealthVec.WithLabelValues("KO").Set(1)
 					probeXAAShealth.Set(0)
 				}
 			}

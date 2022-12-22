@@ -1,26 +1,40 @@
 34d33
 < 	"encoding/json"
-299,311d297
+299,317d297
 < 
 < 		probeXAAShealth = prometheus.NewGauge(prometheus.GaugeOpts{
 < 			Name: "probe_xaas_health",
 < 			Help: "Returns /health of Xaas end point : 0 = Failure, 1 = DOWN, 2 = DEGRADED, 3 = UP",
 < 		})
 < 
+< 		probeXAAShealthVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+< 			Name: "probe_xaas_health_vec",
+< 			Help: "Returns /health of Xaas end point",
+< 			},
+< 			[]string{"UP", "DEGRADED", "DOWN", "KO"},
+< 	        )
+< 
 < 		probeXAAShealthmessage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 < 			Name: "probe_xaas_health_message",
 < 			Help: "Returns /health of Xaas end point",
 < 			},
 < 			[]string{"message"},
-< 
 < 	        )
-322,323d307
+328,330d307
 < 	registry.MustRegister(probeXAAShealth)
+< 	registry.MustRegister(probeXAAShealthVec)
 < 	registry.MustRegister(probeXAAShealthmessage)
-501,502d484
+504,508d480
+< 		probeXAAShealthVec.WithLabelValues("DEGRADED").Set(0)
+< 		probeXAAShealthVec.WithLabelValues("UP").Set(0)
+< 		probeXAAShealthVec.WithLabelValues("DOWN").Set(0)
+< 		probeXAAShealthVec.WithLabelValues("KO").Set(0)
+< 
+513,514d484
 < 				//probeXAAShealth.Set(0)
 < 				//probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
-505,538d486
+517,555d486
+< 				probeXAAShealthVec.WithLabelValues("KO").Set(1)
 < 				probeXAAShealth.Set(0)
 < 				probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 < 			}
@@ -44,18 +58,22 @@
 < 					//fmt.Println(val)
 < 					if val == "UP" {
 < 						probeXAAShealth.Set(3)
+< 						probeXAAShealthVec.WithLabelValues("UP").Set(1)
 < 					}
 < 					if val == "DEGRADED" {
+< 						probeXAAShealthVec.WithLabelValues("DEGRADED").Set(1)
 < 						probeXAAShealth.Set(2)
 < 					}
 < 					if val == "DOWN" {
+< 						probeXAAShealthVec.WithLabelValues("DOWN").Set(1)
 < 						probeXAAShealth.Set(1)
 < 					}
 < 				} else { 
 < 					//fmt.Println("Status not found in response")
+< 					probeXAAShealthVec.WithLabelValues("KO").Set(1)
 < 					probeXAAShealth.Set(0)
 < 				}
-581d528
+598d528
 < 				probeXAAShealth.Set(0)
-584d530
+601d530
 < 				probeXAAShealth.Set(1)
