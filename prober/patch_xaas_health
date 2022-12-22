@@ -1,0 +1,61 @@
+34d33
+< 	"encoding/json"
+299,311d297
+< 
+< 		probeXAAShealth = prometheus.NewGauge(prometheus.GaugeOpts{
+< 			Name: "probe_xaas_health",
+< 			Help: "Returns /health of Xaas end point : 0 = Failure, 1 = DOWN, 2 = DEGRADED, 3 = UP",
+< 		})
+< 
+< 		probeXAAShealthmessage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+< 			Name: "probe_xaas_health_message",
+< 			Help: "Returns /health of Xaas end point",
+< 			},
+< 			[]string{"message"},
+< 
+< 	        )
+322,323d307
+< 	registry.MustRegister(probeXAAShealth)
+< 	registry.MustRegister(probeXAAShealthmessage)
+501,502d484
+< 				//probeXAAShealth.Set(0)
+< 				//probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
+505,538d486
+< 				probeXAAShealth.Set(0)
+< 				probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
+< 			}
+< 		}
+< 
+< 		if success {
+< 			fmt.Println(resp.Body)
+< 			body, err := io.ReadAll(resp.Body)
+< 			probeXAAShealthmessage.WithLabelValues(string(body)).Set(1)
+< 			if err != nil {
+< 				probeXAAShealth.Set(0)
+< 			} else {
+< 				response := string(body)
+< 				//fmt.Println(response)
+< 				resBytes := []byte(response)
+< 				var jsonRes map[string]interface{}
+< 				_ = json.Unmarshal(resBytes, &jsonRes)
+< 				//fmt.Println(jsonRes)
+< 				if val, ok := jsonRes["status"]; ok {
+< 					//fmt.Println("Status found in response : ")
+< 					//fmt.Println(val)
+< 					if val == "UP" {
+< 						probeXAAShealth.Set(3)
+< 					}
+< 					if val == "DEGRADED" {
+< 						probeXAAShealth.Set(2)
+< 					}
+< 					if val == "DOWN" {
+< 						probeXAAShealth.Set(1)
+< 					}
+< 				} else { 
+< 					//fmt.Println("Status not found in response")
+< 					probeXAAShealth.Set(0)
+< 				}
+581d528
+< 				probeXAAShealth.Set(0)
+584d530
+< 				probeXAAShealth.Set(1)

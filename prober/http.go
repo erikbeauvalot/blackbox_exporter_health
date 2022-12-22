@@ -301,6 +301,14 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			Name: "probe_xaas_health",
 			Help: "Returns /health of Xaas end point : 0 = Failure, 1 = DOWN, 2 = DEGRADED, 3 = UP",
 		})
+
+		probeXAAShealthmessage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "probe_xaas_health_message",
+			Help: "Returns /health of Xaas end point",
+			},
+			[]string{"message"},
+
+	        )
 	)
 
 	registry.MustRegister(durationGaugeVec)
@@ -312,6 +320,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 	registry.MustRegister(probeHTTPVersionGauge)
 	registry.MustRegister(probeFailedDueToRegex)
 	registry.MustRegister(probeXAAShealth)
+	registry.MustRegister(probeXAAShealthmessage)
 
 	httpConfig := module.HTTP
 
@@ -489,16 +498,19 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			success = matchRegularExpressionsOnHeaders(resp.Header, httpConfig, logger)
 			if success {
 				probeFailedDueToRegex.Set(0)
-				probeXAAShealth.Set(0)
+				//probeXAAShealth.Set(0)
+				//probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 			} else {
 				probeFailedDueToRegex.Set(1)
-				probeXAAShealth.Set(1)
+				probeXAAShealth.Set(0)
+				probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 			}
 		}
 
 		if success {
 			fmt.Println(resp.Body)
 			body, err := io.ReadAll(resp.Body)
+			probeXAAShealthmessage.WithLabelValues(string(body)).Set(1)
 			if err != nil {
 				probeXAAShealth.Set(0)
 			} else {
