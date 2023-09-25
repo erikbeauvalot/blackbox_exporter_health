@@ -590,7 +590,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
                                         //fmt.Println("Status found in response : ")
                                         //fmt.Println(val)
                                         if val == "UP" {
-                                                probeXAAShealth.Set(3)
+                                                probeXAAShealth.Set(1)
                                                 probeXAAShealthVec.WithLabelValues("1", "0", "0", "0").Set(3)
                                         }
                                         if val == "DEGRADED" {
