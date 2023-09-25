@@ -32,6 +32,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+        "encoding/json"
 
 	"github.com/andybalholm/brotli"
 	"github.com/go-kit/log"
@@ -296,6 +297,25 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			Name: "probe_http_last_modified_timestamp_seconds",
 			Help: "Returns the Last-Modified HTTP response header in unixtime",
 		})
+
+		probeXAAShealth = prometheus.NewGauge(prometheus.GaugeOpts{
+                        Name: "probe_xaas_health",
+                        Help: "Returns /health of Xaas end point : 0 = Failure, 1 = DOWN, 2 = DEGRADED, 3 = UP",
+                })
+
+                probeXAAShealthVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+                        Name: "probe_xaas_health_vec",
+                        Help: "Returns /health of Xaas end point",
+                        },
+                        []string{"UP", "DEGRADED", "DOWN", "KO"},
+                )
+
+                probeXAAShealthmessage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+                        Name: "probe_xaas_health_message",
+                        Help: "Returns /health of Xaas end point",
+                        },
+                        []string{"message"},
+                )
 	)
 
 	registry.MustRegister(durationGaugeVec)
@@ -306,6 +326,9 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 	registry.MustRegister(statusCodeGauge)
 	registry.MustRegister(probeHTTPVersionGauge)
 	registry.MustRegister(probeFailedDueToRegex)
+        registry.MustRegister(probeXAAShealth)
+        registry.MustRegister(probeXAAShealthVec)
+        registry.MustRegister(probeXAAShealthmessage)
 
 	httpConfig := module.HTTP
 
@@ -538,10 +561,50 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			success = matchRegularExpressions(byteCounter, httpConfig, logger)
 			if success {
 				probeFailedDueToRegex.Set(0)
+				probeXAAShealth.Set(1)
 			} else {
 				probeFailedDueToRegex.Set(1)
+			        probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
+                                probeXAAShealth.Set(0)
+                                probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 			}
 		}
+
+                if success {
+                        //fmt.Println(resp.Body)
+                        body, err := io.ReadAll(resp.Body)
+                        probeXAAShealthmessage.WithLabelValues(string(body)).Set(1)
+                        if err != nil {
+                                probeXAAShealth.Set(0)
+                        } else {
+                                response := string(body)
+                                //fmt.Println(response)
+                                resBytes := []byte(response)
+                                var jsonRes map[string]interface{}
+                                _ = json.Unmarshal(resBytes, &jsonRes)
+                                //fmt.Println(jsonRes)
+                                if val, ok := jsonRes["status"]; ok {
+                                        //fmt.Println("Status found in response : ")
+                                        //fmt.Println(val)
+                                        if val == "UP" {
+                                                probeXAAShealth.Set(1)
+                                                probeXAAShealthVec.WithLabelValues("1", "0", "0", "0").Set(1)
+                                        }
+                                        if val == "DEGRADED" {
+                                                probeXAAShealthVec.WithLabelValues("0", "1", "0", "0").Set(1)
+                                                probeXAAShealth.Set(1)
+                                        }
+                                        if val == "DOWN" {
+                                                probeXAAShealthVec.WithLabelValues("0", "0", "1", "0").Set(0)
+                                                probeXAAShealth.Set(0)
+                                        }
+                                } else {
+                                        //fmt.Println("Status not found in response")
+                                        probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
+                                        probeXAAShealth.Set(0)
+                                }
+                        }
+                }
 
 		if !requestErrored {
 			_, err = io.Copy(io.Discard, byteCounter)
