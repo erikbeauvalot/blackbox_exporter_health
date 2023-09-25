@@ -32,7 +32,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-        "encoding/json"
+	"encoding/json"
 
 	"github.com/andybalholm/brotli"
 	"github.com/go-kit/log"
@@ -326,9 +326,9 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 	registry.MustRegister(statusCodeGauge)
 	registry.MustRegister(probeHTTPVersionGauge)
 	registry.MustRegister(probeFailedDueToRegex)
-        registry.MustRegister(probeXAAShealth)
-        registry.MustRegister(probeXAAShealthVec)
-        registry.MustRegister(probeXAAShealthmessage)
+	registry.MustRegister(probeXAAShealth)
+	registry.MustRegister(probeXAAShealthVec)
+	registry.MustRegister(probeXAAShealthmessage)
 
 	httpConfig := module.HTTP
 
@@ -513,12 +513,55 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			level.Info(logger).Log("msg", "Invalid HTTP response status code, wanted 2xx", "status_code", resp.StatusCode)
 		}
 
+		//probeXAAShealthVec.WithLabelValues("0", "0", "0", "0").Set(1)
+
 		if success && (len(httpConfig.FailIfHeaderMatchesRegexp) > 0 || len(httpConfig.FailIfHeaderNotMatchesRegexp) > 0) {
 			success = matchRegularExpressionsOnHeaders(resp.Header, httpConfig, logger)
 			if success {
 				probeFailedDueToRegex.Set(0)
+				//probeXAAShealth.Set(0)
+				//probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 			} else {
 				probeFailedDueToRegex.Set(1)
+				probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(1)
+				probeXAAShealth.Set(0)
+				probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
+			}
+		}
+
+		if success {
+			//fmt.Println(resp.Body)
+			body, err := io.ReadAll(resp.Body)
+			probeXAAShealthmessage.WithLabelValues(string(body)).Set(1)
+			if err != nil {
+				probeXAAShealth.Set(0)
+			} else {
+				response := string(body)
+				//fmt.Println(response)
+				resBytes := []byte(response)
+				var jsonRes map[string]interface{}
+				_ = json.Unmarshal(resBytes, &jsonRes)
+				//fmt.Println(jsonRes)
+				if val, ok := jsonRes["status"]; ok {
+					//fmt.Println("Status found in response : ")
+					//fmt.Println(val)
+					if val == "UP" {
+						probeXAAShealth.Set(1)
+						probeXAAShealthVec.WithLabelValues("1", "0", "0", "0").Set(1)
+					}
+					if val == "DEGRADED" {
+						probeXAAShealthVec.WithLabelValues("0", "1", "0", "0").Set(1)
+						probeXAAShealth.Set(1)
+					}
+					if val == "DOWN" {
+						probeXAAShealthVec.WithLabelValues("0", "0", "1", "0").Set(1)
+						probeXAAShealth.Set(0)
+					}
+				} else { 
+					//fmt.Println("Status not found in response")
+					probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(1)
+					probeXAAShealth.Set(0)
+				}
 			}
 		}
 
