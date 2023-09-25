@@ -16,7 +16,17 @@ Generic placeholders are defined as follows:
 
 The other placeholders are specified separately.
 
-### Module
+See [example.yml](example.yml) for configuration examples.
+
+```yml
+
+modules:
+     [ <string>: <module> ... ]
+
+```
+
+
+### `<module>`
 ```yml
 
   # The protocol over which the probe will take place (http, tcp, dns, icmp, grpc).
@@ -34,7 +44,7 @@ The other placeholders are specified separately.
 
 ```
 
-### <http_probe>
+### `<http_probe>`
 ```yml
 
   # Accepted status codes for this probe. Defaults to 2xx.
@@ -99,25 +109,37 @@ The other placeholders are specified separately.
   tls_config:
     [ <tls_config> ]
 
-  # The HTTP basic authentication credentials for the targets.
+  # The HTTP basic authentication credentials.
   basic_auth:
     [ username: <string> ]
     [ password: <secret> ]
     [ password_file: <filename> ]
 
-  # The bearer token for the targets.
-  [ bearer_token: <secret> ]
-
-  # The bearer token file for the targets.
-  [ bearer_token_file: <filename> ]
+  # Sets the `Authorization` header on every request with
+  # the configured credentials.
+  authorization:
+    # Sets the authentication type of the request.
+    [ type: <string> | default: Bearer ]
+    # Sets the credentials of the request. It is mutually exclusive with
+    # `credentials_file`.
+    [ credentials: <secret> ]
+    # Sets the credentials of the request with the credentials read from the
+    # configured file. It is mutually exclusive with `credentials`.
+    [ credentials_file: <filename> ]
 
   # HTTP proxy server to use to connect to the targets.
   [ proxy_url: <string> ]
+  # Comma-separated string that can contain IPs, CIDR notation, domain names
+  # that should be excluded from proxying. IP and domain names can
+  # contain port numbers.
+  [ no_proxy: <string> ]
+  # Use proxy URL indicated by environment variables (HTTP_PROXY, https_proxy, HTTPs_PROXY, https_proxy, and no_proxy)
+  [ proxy_from_environment: <bool> | default: false ]
   # Specifies headers to send to proxies during CONNECT requests.
   [ proxy_connect_headers:
     [ <string>: [<secret>, ...] ] ]
 
-  # Skip DNS resolution and URL change when an HTTP proxy (proxy_url) is set.
+  # Skip DNS resolution and URL change when an HTTP proxy (proxy_url or proxy_from_environment) is set.
   [ skip_resolve_phase_with_proxy: <boolean> | default = false ]
 
   # OAuth 2.0 configuration to use to connect to the targets.
@@ -132,11 +154,15 @@ The other placeholders are specified separately.
   [ ip_protocol_fallback: <boolean> | default = true ]
 
   # The body of the HTTP request used in probe.
-  body: [ <string> ]
+  [ body: <string> ]
+
+  # Read the HTTP request body from from a file.
+  # It is mutually exclusive with `body`.
+  [ body_file: <filename> ]
 
 ```
 
-#### <http_header_match_spec>
+#### `<http_header_match_spec>`
 
 ```yml
 header: <string>,
@@ -144,7 +170,7 @@ regexp: <regex>,
 [ allow_missing: <boolean> | default = false ]
 ```
 
-### <tcp_probe>
+### `<tcp_probe>`
 
 ```yml
 
@@ -173,7 +199,7 @@ tls_config:
 
 ```
 
-### <dns_probe>
+### `<dns_probe>`
 
 ```yml
 
@@ -249,7 +275,7 @@ validate_additional_rrs:
 
 ```
 
-### <icmp_probe>
+### `<icmp_probe>`
 
 ```yml
 
@@ -274,7 +300,7 @@ validate_additional_rrs:
 
 ```
 
-### <grpc_probe>
+### `<grpc_probe>`
 
 ```yml
 # The service name to query for health status.
@@ -292,7 +318,7 @@ tls_config:
   [ <tls_config> ]
 ```
 
-### <tls_config>
+### `<tls_config>`
 
 ```yml
 
@@ -318,7 +344,7 @@ tls_config:
 [ min_version: <string> ]
 ```
 
-#### <oauth2>
+#### `<oauth2>`
 
 OAuth 2.0 authentication using the client credentials grant type. Blackbox
 exporter fetches an access token from the specified endpoint with the given

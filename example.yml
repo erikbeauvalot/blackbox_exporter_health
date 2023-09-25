@@ -10,7 +10,7 @@ modules:
         Host: vhost.example.com
         Accept-Language: en-US
         Origin: example.com
-      no_follow_redirects: false
+      follow_redirects: true
       fail_if_ssl: false
       fail_if_not_ssl: false
       fail_if_body_matches_regexp:
@@ -48,6 +48,12 @@ modules:
       headers:
         Content-Type: application/json
       body: '{}'
+  http_post_body_file:
+    prober: http
+    timeout: 5s
+    http:
+      method: POST
+      body_file: "/files/body.txt"
   http_basic_auth_example:
     prober: http
     timeout: 5s
@@ -58,6 +64,22 @@ modules:
       basic_auth:
         username: "username"
         password: "mysecret"
+  http_2xx_oauth_client_credentials:
+    prober: http
+    timeout: 5s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2"]
+      follow_redirects: true
+      preferred_ip_protocol: "ip4"
+      valid_status_codes:
+        - 200
+        - 201
+      oauth2:
+        client_id: "client_id"
+        client_secret: "client_secret"
+        token_url: "https://api.example.com/token"
+        endpoint_params:
+          grant_type: "client_credentials"
   http_custom_ca_example:
     prober: http
     http:

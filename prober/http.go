@@ -27,6 +27,7 @@ import (
 	"net/http/httptrace"
 	"net/textproto"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -298,23 +299,23 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 		})
 
 		probeXAAShealth = prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "probe_xaas_health",
-			Help: "Returns /health of Xaas end point : 0 = Failure, 1 = DOWN, 2 = DEGRADED, 3 = UP",
-		})
+                        Name: "probe_xaas_health",
+                        Help: "Returns /health of Xaas end point : 0 = Failure, 1 = DOWN, 2 = DEGRADED, 3 = UP",
+                })
 
-		probeXAAShealthVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "probe_xaas_health_vec",
-			Help: "Returns /health of Xaas end point",
-			},
-			[]string{"UP", "DEGRADED", "DOWN", "KO"},
-	        )
+                probeXAAShealthVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+                        Name: "probe_xaas_health_vec",
+                        Help: "Returns /health of Xaas end point",
+                        },
+                        []string{"UP", "DEGRADED", "DOWN", "KO"},
+                )
 
-		probeXAAShealthmessage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "probe_xaas_health_message",
-			Help: "Returns /health of Xaas end point",
-			},
-			[]string{"message"},
-	        )
+                probeXAAShealthmessage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+                        Name: "probe_xaas_health_message",
+                        Help: "Returns /health of Xaas end point",
+                        },
+                        []string{"message"},
+                )
 	)
 
 	registry.MustRegister(durationGaugeVec)
@@ -345,7 +346,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 	targetPort := targetURL.Port()
 
 	var ip *net.IPAddr
-	if !module.HTTP.SkipResolvePhaseWithProxy || module.HTTP.HTTPClientConfig.ProxyURL.URL == nil {
+	if !module.HTTP.SkipResolvePhaseWithProxy || module.HTTP.HTTPClientConfig.ProxyConfig.ProxyURL.URL == nil || module.HTTP.HTTPClientConfig.ProxyConfig.ProxyFromEnvironment {
 		var lookupTime float64
 		ip, lookupTime, err = chooseProtocol(ctx, module.HTTP.IPProtocol, module.HTTP.IPProtocolFallback, targetHost, registry, logger)
 		durationGaugeVec.WithLabelValues("resolve").Add(lookupTime)
@@ -429,6 +430,17 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 	// If a body is configured, add it to the request.
 	if httpConfig.Body != "" {
 		body = strings.NewReader(httpConfig.Body)
+	}
+
+	// If a body file is configured, add its content to the request.
+	if httpConfig.BodyFile != "" {
+		body_file, err := os.Open(httpConfig.BodyFile)
+		if err != nil {
+			level.Error(logger).Log("msg", "Error creating request", "err", err)
+			return
+		}
+		defer body_file.Close()
+		body = body_file
 	}
 
 	request, err := http.NewRequest(httpConfig.Method, targetURL.String(), body)
@@ -592,12 +604,50 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			success = matchRegularExpressions(byteCounter, httpConfig, logger)
 			if success {
 				probeFailedDueToRegex.Set(0)
-				probeXAAShealth.Set(0)
+				probeXAAShealth.Set(1)
 			} else {
 				probeFailedDueToRegex.Set(1)
-				probeXAAShealth.Set(1)
+			        probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
+                                probeXAAShealth.Set(0)
+                                probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 			}
 		}
+
+                if success {
+                        //fmt.Println(resp.Body)
+                        body, err := io.ReadAll(resp.Body)
+                        probeXAAShealthmessage.WithLabelValues(string(body)).Set(1)
+                        if err != nil {
+                                probeXAAShealth.Set(0)
+                        } else {
+                                response := string(body)
+                                //fmt.Println(response)
+                                resBytes := []byte(response)
+                                var jsonRes map[string]interface{}
+                                _ = json.Unmarshal(resBytes, &jsonRes)
+                                //fmt.Println(jsonRes)
+                                if val, ok := jsonRes["status"]; ok {
+                                        //fmt.Println("Status found in response : ")
+                                        //fmt.Println(val)
+                                        if val == "UP" {
+                                                probeXAAShealth.Set(1)
+                                                probeXAAShealthVec.WithLabelValues("1", "0", "0", "0").Set(1)
+                                        }
+                                        if val == "DEGRADED" {
+                                                probeXAAShealthVec.WithLabelValues("0", "1", "0", "0").Set(1)
+                                                probeXAAShealth.Set(1)
+                                        }
+                                        if val == "DOWN" {
+                                                probeXAAShealthVec.WithLabelValues("0", "0", "1", "0").Set(0)
+                                                probeXAAShealth.Set(0)
+                                        }
+                                } else {
+                                        //fmt.Println("Status not found in response")
+                                        probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
+                                        probeXAAShealth.Set(0)
+                                }
+                        }
+                }
 
 		if !requestErrored {
 			_, err = io.Copy(io.Discard, byteCounter)
@@ -703,7 +753,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			level.Error(logger).Log("msg", "Final request was over SSL")
 			success = false
 		}
-	} else if httpConfig.FailIfNotSSL {
+	} else if httpConfig.FailIfNotSSL && success {
 		level.Error(logger).Log("msg", "Final request was not over SSL")
 		success = false
 	}
