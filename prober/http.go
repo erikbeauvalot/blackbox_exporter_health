@@ -506,6 +506,10 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			if !success {
 				level.Info(logger).Log("msg", "Invalid HTTP response status code", "status_code", resp.StatusCode,
 					"valid_status_codes", fmt.Sprintf("%v", httpConfig.ValidStatusCodes))
+				        probeFailedDueToRegex.Set(1)
+				        probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
+				        probeXAAShealth.Set(0)
+				        probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 			}
 		} else if 200 <= resp.StatusCode && resp.StatusCode < 300 {
 			success = true
