@@ -303,6 +303,11 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
                         Help: "Returns /health of Xaas end point : 0 = Failure or DOWN , 1 = DEGRADED or UP",
                 })
 
+		probeXAAShealth2 = prometheus.NewGauge(prometheus.GaugeOpts{
+                        Name: "probe_xaas_health2",
+                        Help: "Returns /health status for debuging purpose only",
+                })
+
                 probeXAAShealthVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
                         Name: "probe_xaas_health_vec",
 			Help: "Returns /health of Xaas end point : 3 = UP, 2 = DEGRADED, 1 = DOWN, 0 = Failure",
@@ -327,6 +332,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 	registry.MustRegister(probeHTTPVersionGauge)
 	registry.MustRegister(probeFailedDueToRegex)
 	registry.MustRegister(probeXAAShealth)
+	registry.MustRegister(probeXAAShealth2)
 	registry.MustRegister(probeXAAShealthVec)
 	registry.MustRegister(probeXAAShealthmessage)
 
@@ -509,6 +515,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 				        probeFailedDueToRegex.Set(1)
 				        probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
 				        probeXAAShealth.Set(0)
+				        probeXAAShealth2.Set(1)
 				        probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 			}
 		} else if 200 <= resp.StatusCode && resp.StatusCode < 300 {
@@ -525,6 +532,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 				probeFailedDueToRegex.Set(1)
 				probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
 				probeXAAShealth.Set(0)
+				probeXAAShealth2.Set(2)
 				probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 			}
 		}
@@ -573,6 +581,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 				probeFailedDueToRegex.Set(1)
 			        probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
                                 probeXAAShealth.Set(0)
+                                probeXAAShealth2.Set(3)
                                 probeXAAShealthmessage.WithLabelValues(string(resp.StatusCode)).Set(1)
 			}
 		}
@@ -583,6 +592,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
                         probeXAAShealthmessage.WithLabelValues(string(body)).Set(1)
                         if err != nil {
                                 probeXAAShealth.Set(0)
+                                probeXAAShealth2.Set(4)
 			        probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
                         } else {
                                 response := string(body)
@@ -605,17 +615,20 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
                                         if val == "DOWN" {
                                                 probeXAAShealthVec.WithLabelValues("0", "0", "1", "0").Set(1)
                                                 probeXAAShealth.Set(0)
+                                                probeXAAShealth2.Set(5)
                                         }
                                 } else {
                                         //fmt.Println("Status not found in response")
                                         probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
                                         probeXAAShealth.Set(0)
+                                        probeXAAShealth2.Set(6)
                                         probeXAAShealthmessage.WithLabelValues("Unkwoned status").Set(1)
                                 }
                         }
                 } else {
                         probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
                         probeXAAShealth.Set(0)
+                        probeXAAShealth2.Set(6)
                         probeXAAShealthmessage.WithLabelValues("Failed to connect").Set(1)
                 }
 		
@@ -626,6 +639,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 				success = false
                                 probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
                                 probeXAAShealth.Set(0)
+                                probeXAAShealth2.Set(7)
                                 probeXAAShealthmessage.WithLabelValues("Failed to read HTTP response body").Set(1)
 			}
 
@@ -668,6 +682,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 				success = false
                                 probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
                                 probeXAAShealth.Set(0)
+                                probeXAAShealth2.Set(8)
                                 probeXAAShealthmessage.WithLabelValues("Invalid HTTP version number").Set(1)
 			}
 		}
