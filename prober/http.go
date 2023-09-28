@@ -300,12 +300,12 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 
 		probeXAAShealth = prometheus.NewGauge(prometheus.GaugeOpts{
                         Name: "probe_xaas_health",
-                        Help: "Returns /health of Xaas end point : 0 = Failure, 1 = DOWN, 2 = DEGRADED, 3 = UP",
+                        Help: "Returns /health of Xaas end point : 0 = Failure or DOWN , 1 = DEGRADED or UP",
                 })
 
                 probeXAAShealthVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
                         Name: "probe_xaas_health_vec",
-                        Help: "Returns /health of Xaas end point",
+			Help: "Returns /health of Xaas end point : 3 = UP, 2 = DEGRADED, 1 = DOWN, 0 = Failure",
                         },
                         []string{"UP", "DEGRADED", "DOWN", "KO"},
                 )
@@ -583,6 +583,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
                         probeXAAShealthmessage.WithLabelValues(string(body)).Set(1)
                         if err != nil {
                                 probeXAAShealth.Set(0)
+			        probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
                         } else {
                                 response := string(body)
                                 //fmt.Println(response)
