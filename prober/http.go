@@ -577,11 +577,55 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			}
 		}
 
+	        if success {
+                        //fmt.Println(resp.Body)
+                        body, err := io.ReadAll(resp.Body)
+                        probeXAAShealthmessage.WithLabelValues(string(body)).Set(1)
+                        if err != nil {
+                                probeXAAShealth.Set(0)
+                        } else {
+                                response := string(body)
+                                //fmt.Println(response)
+                                resBytes := []byte(response)
+                                var jsonRes map[string]interface{}
+                                _ = json.Unmarshal(resBytes, &jsonRes)
+                                //fmt.Println(jsonRes)
+                                if val, ok := jsonRes["status"]; ok {
+                                        //fmt.Println("Status found in response : ")
+                                        //fmt.Println(val)
+                                        if val == "UP" {
+                                                probeXAAShealth.Set(1)
+                                                probeXAAShealthVec.WithLabelValues("1", "0", "0", "0").Set(3)
+                                        }
+                                        if val == "DEGRADED" {
+                                                probeXAAShealthVec.WithLabelValues("0", "1", "0", "0").Set(2)
+                                                probeXAAShealth.Set(1)
+                                        }
+                                        if val == "DOWN" {
+                                                probeXAAShealthVec.WithLabelValues("0", "0", "1", "0").Set(1)
+                                                probeXAAShealth.Set(0)
+                                        }
+                                } else {
+                                        //fmt.Println("Status not found in response")
+                                        probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
+                                        probeXAAShealth.Set(0)
+                                        probeXAAShealthmessage.WithLabelValues("Unkwoned status").Set(1)
+                                }
+                        }
+                } else {
+                        probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
+                        probeXAAShealth.Set(0)
+                        probeXAAShealthmessage.WithLabelValues("Failed to connect").Set(1)
+                }
+		
 		if !requestErrored {
 			_, err = io.Copy(io.Discard, byteCounter)
 			if err != nil {
 				level.Info(logger).Log("msg", "Failed to read HTTP response body", "err", err)
 				success = false
+                                probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
+                                probeXAAShealth.Set(0)
+                                probeXAAShealthmessage.WithLabelValues("Failed to read HTTP response body").Set(1)
 			}
 
 			respBodyBytes = byteCounter.n
@@ -621,45 +665,10 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			if !found {
 				level.Error(logger).Log("msg", "Invalid HTTP version number", "version", resp.Proto)
 				success = false
-			}
-		}
-                if success {
-                        //fmt.Println(resp.Body)
-                        body, err := io.ReadAll(resp.Body)
-                        probeXAAShealthmessage.WithLabelValues(string(body)).Set(1)
-                        if err != nil {
+                                probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
                                 probeXAAShealth.Set(0)
-                        } else {
-                                response := string(body)
-                                //fmt.Println(response)
-                                resBytes := []byte(response)
-                                var jsonRes map[string]interface{}
-                                _ = json.Unmarshal(resBytes, &jsonRes)
-                                //fmt.Println(jsonRes)
-                                if val, ok := jsonRes["status"]; ok {
-                                        //fmt.Println("Status found in response : ")
-                                        //fmt.Println(val)
-                                        if val == "UP" {
-                                                probeXAAShealth.Set(1)
-                                                probeXAAShealthVec.WithLabelValues("1", "0", "0", "0").Set(3)
-                                        }
-                                        if val == "DEGRADED" {
-                                                probeXAAShealthVec.WithLabelValues("0", "1", "0", "0").Set(2)
-                                                probeXAAShealth.Set(1)
-                                        }
-                                        if val == "DOWN" {
-                                                probeXAAShealthVec.WithLabelValues("0", "0", "1", "0").Set(1)
-                                                probeXAAShealth.Set(0)
-                                        }
-                                } else {
-                                        //fmt.Println("Status not found in response")
-                                        probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
-                                        probeXAAShealth.Set(0)
-                                }
-                        }
-                } else {
- 			probeXAAShealthVec.WithLabelValues("0", "0", "0", "1").Set(0)
-                        probeXAAShealth.Set(0)
+                                probeXAAShealthmessage.WithLabelValues("Invalid HTTP version number").Set(1)
+			}
 		}
 
 	}
